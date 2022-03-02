@@ -3,8 +3,11 @@ const { Pokemon, Tipo } = require('../../db');
 
 module.exports = {
     createNewPokemon: (data) => {
-        const { nombre, vida, fuerza, defensa, velocidad, altura, peso} = data;
-        return {
+        const { nombre, vida, fuerza, defensa, velocidad, altura, peso, tipo} = data;
+
+        let newPokemon;
+
+        return newPokemon = Pokemon.create({
             nombre,
             vida,
             fuerza,
@@ -12,21 +15,50 @@ module.exports = {
             velocidad,
             altura,
             peso
-        }
-    },
-    addType: (idTypes, idPokemon) => {
-        return Pokemon.findByPk(idPokemon)
-        .then(pokemon => {
-            return pokemon.addEpisodes(idTypes);
         })
+        .then(() => {
+            console.log(newPokemon);
+            // return newPokemon.addTipo(tipo)
+            // .then(() => newPokemon);
+        })
+        
     },
+    
     getPokemons: (data) => {
 
-        const { name } = data;
         let requestPokemonsDb, firstRequestApi;
+        
+        if(data){
+            const { name } = data;   
 
-        if(name){
-            
+            requestPokemonsDb = Pokemon.findOne({
+                where: {
+                    nombre: name
+                }
+            })
+            const requestPokemonsApi = axios.get(`https://pokeapi.co/api/v2/pokemon/${name}`);
+
+            return Promise.allSettled([requestPokemonsDb, requestPokemonsApi])
+            .then(result => {
+
+                const [ pokemonsDb, pokemonsApi ] = result;
+                
+                if(pokemonsDb.value === null && pokemonsApi.status === 'rejected'){
+                    throw Error('not found')
+                } else if(pokemonsDb.value === null){
+                    return {
+                        nombre: pokemonsApi.value.data.name,
+                        image: pokemonsApi.value.data.sprites.front_default,
+                        tipos: pokemonsApi.value.data.types.map(t => t.type.name)
+                    }
+                } else {
+                    return {
+                        nombre: pokemonsDb.value.nombre,
+                        tipos: pokemonsDb.value.tipos,
+                    }
+                }
+                
+            })
         } else {
             
             requestPokemonsDb = Pokemon.findAll({
@@ -36,7 +68,7 @@ module.exports = {
         
             return Promise.all([requestPokemonsDb, firstRequestApi])
             .then(promises => {
-                const [ pokemonsDb, urlPokemonsApi ] = promises;
+               let [ pokemonsDb, urlPokemonsApi ] = promises;
         
                 const requestPokemonsApi = urlPokemonsApi.data.results.map((pokemon) => axios.get(pokemon.url));
         
@@ -50,6 +82,12 @@ module.exports = {
                         }
                     });
         
+                    pokemonsDb = pokemonsDb.map(pokemon => {
+                        return {
+                            nombre: pokemon.dataValues.nombre,
+                            tipos: pokemon.dataValues.tipos
+                        }
+                    })
                     
                     const allPokemons = [... pokemonsApi, ...pokemonsDb];
                     return allPokemons;
@@ -57,6 +95,23 @@ module.exports = {
             
             });
         }
+    },
+    getTypes: () => {
+        return axios.get('https://pokeapi.co/api/v2/type')
+        .then(types => {
+            types = types.data.results.map(type => {
+                return Tipo.findOrCreate({
+                    where: {
+                        nombre: type.name,
+                    }
+                })
+            })
+
+        })
+        .then(() => {
+            return Tipo.findAll()
+            .then(types => types)
+        })
     }
 }
 

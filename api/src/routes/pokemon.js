@@ -7,7 +7,6 @@ const axios = require('axios');
 
 const { 
     createNewPokemon,
-    addTypes,
     getPokemons, 
 } = require('./models/model');
 
@@ -16,28 +15,24 @@ router.use(express.json());
 
 // RUTAS
 
-router.get('/:id', (req, res, next) => {
 
-
-    res.send('holi')
+router.get('/:name', (req, res, next)=>{
+    getPokemons(req.params)
+    .then(pokemon => res.json(pokemon))
+    .catch(e => next(e));
 });
 
 router.get('/', (req, res, next) => {
 
     getPokemons()
-    .then(pokemons => res.send(pokemons));
+    .then(pokemons => res.json(pokemons))
+    .catch(e => next(e))
 });
 
 router.post('/', (req, res, next) => {
     const { idTypes } = req.query;
-    Pokemon.create(createNewPokemon(req.body))
-    // .then(pokemon => {
-    //     console.log(pokemon.dataValues.ID);
-    //     if(idTypes){
-    //         addTypes(idTypes, pokemon.dataValues.ID)
-    //         .then(r => console.log(r))
-    //     }
-    // })
+    createNewPokemon(req.body)
+    
     .then(pokemon => res.json({msg: 'Pokemon creado con éxito', pokemon}))
     .catch(e => next(e));
 
